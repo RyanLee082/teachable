@@ -1,165 +1,85 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TensorFlow.js 即時影像辨識</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@latest/dist/coco-ssd.min.js"></script>
-    
+    <title>自動載入小花圖片</title>
     <style>
+        /* --- CSS 部分：負責美化與置中 --- */
+        
+        /* 1. 設定全螢幕與置中佈局 */
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            padding: 0;
+            height: 100vh;        /* 高度佔滿視窗 */
+            display: flex;        /* 使用彈性盒子 */
+            justify-content: center; /* 水平置中 */
+            align-items: center;     /* 垂直置中 */
+            background-color: #f0f2f5; /* 柔和背景色 */
         }
-        h1 {
-            color: #333;
+
+        /* 2. 圖片容器樣式 (相框效果) */
+        .image-container {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* 陰影效果 */
+            text-align: center;
         }
-        /* * 關鍵 CSS：
-         * 1. 使用 'position: relative' 作為容器。
-         * 2. 讓 video 和 canvas 疊在一起。
-         * 3. 'position: absolute' 讓 canvas 浮在 video 上方。
-        */
-        #live-container {
-            position: relative;
-            border: 2px solid #555;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+
+        /* 3. 圖片本體樣式 */
+        #target-image {
+            max-width: 80vw;      /* 寬度最大不超過視窗 80% */
+            max-height: 70vh;     /* 高度最大不超過視窗 70% */
+            display: block;       /* 區塊顯示 */
+            border-radius: 5px;
         }
-        #video, #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        #video {
-            /* 讓影像水平翻轉，鏡頭畫面看起來比較直觀 */
-            transform: scaleX(-1);
-        }
-        #canvas {
-            z-index: 10; /* 確保 canvas 在最上層 */
-        }
-        #status {
-            margin-top: 15px;
-            font-size: 1.2em;
+
+        /* 4. 如果圖片讀取失敗時的錯誤文字樣式 */
+        .error-msg {
+            color: red;
             font-weight: bold;
-            color: #d9534f;
+            font-family: Arial, sans-serif;
+            display: none; /* 預設隱藏 */
         }
     </style>
 </head>
 <body>
 
-    <h1>Webcam 即時物件偵測</h1>
-    <p>使用 TensorFlow.js (COCO-SSD 模型)</p>
-
-    <div id="status">正在載入模型並啟動攝影機...</div>
-
-    <div id="live-container">
-        <video id="video" width="640" height="480" autoplay muted playsinline></video>
-        <canvas id="canvas" width="640" height="480"></canvas>
+    <div class="image-container">
+        <img id="target-image" src="" alt="小花圖片">
+        
+        <p id="error-text" class="error-msg">找不到圖片！請確認「小花.png」是否在同一個資料夾內。</p>
     </div>
 
     <script>
-        // 取得 DOM 元素
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const statusDisplay = document.getElementById('status');
-        const ctx = canvas.getContext('2d');
+        /* --- JavaScript 部分：負責邏輯控制 --- */
 
-        let model = null;
+        // 1. 設定圖片檔名
+        const imageName = "小花.png";
 
-        // 啟動攝影機的函式
-        async function setupWebcam() {
-            try {
-                // 請求存取攝影機
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: true,
-                    audio: false
-                });
-                video.srcObject = stream;
-                
-                // 等待影像串流載入完成
-                return new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
-                    };
-                });
-            } catch (err) {
-                console.error("無法啟動攝影機: ", err);
-                statusDisplay.innerHTML = `錯誤：無法啟 động 攝影機 (${err.message})<br>請允許瀏覽器存取攝影機並重新整理。`;
-            }
-        }
+        // 2. 取得 HTML 元素
+        const imgElement = document.getElementById('target-image');
+        const errorText = document.getElementById('error-text');
 
-        // 執行辨識的函式
-        async function runDetection() {
-            if (!model) return;
+        // 3. 設定圖片路徑
+        // 瀏覽器載入網頁時，立即執行這行
+        imgElement.src = imageName;
 
-            // 1. 偵測影像中的物體
-            //    我們傳入 'video' 元素，模型會自動抓取當前畫面
-            const predictions = await model.detect(video);
+        // 4. 加入「載入失敗」的偵測 (除錯用)
+        // 如果路徑錯誤或圖片不存在，會觸發 onerror 事件
+        imgElement.onerror = function() {
+            console.error("圖片載入失敗");
+            imgElement.style.display = 'none'; // 隱藏破圖圖示
+            errorText.style.display = 'block'; // 顯示錯誤訊息
+            errorText.innerText = `無法讀取「${imageName}」，請確認檔案名稱與位置。`;
+        };
 
-            // 2. 清除上一次的繪製結果
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 3. 設定繪圖樣式
-            ctx.strokeStyle = "#00FF00"; // 綠色框
-            ctx.lineWidth = 2;
-            ctx.fillStyle = "#00FF00";
-            ctx.font = "16px Arial";
-
-            // 4. 迭代所有預測結果並繪製
-            predictions.forEach(prediction => {
-                const [x, y, width, height] = prediction.bbox;
-                
-                // 由於影像水平翻轉了，我們也必須翻轉 canvas 的 X 座標
-                const flippedX = canvas.width - x - width;
-
-                // 繪製框框
-                ctx.strokeRect(flippedX, y, width, height);
-                
-                // 繪製標籤
-                const label = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
-                ctx.fillText(label, flippedX + 5, y + 20);
-            });
-
-            // 5. 循環執行 (使用 requestAnimationFrame 效能較好)
-            requestAnimationFrame(runDetection);
-        }
-
-        // --- 主程式執行 ---
-        async function main() {
-            // 1. 載入 COCO-SSD 模型
-            statusDisplay.innerHTML = "正在載入 COCO-SSD 模型...";
-            try {
-                model = await cocoSsd.load();
-            } catch (err) {
-                console.error("載入模型失敗: ", err);
-                statusDisplay.innerHTML = "錯誤：載入模型失敗。";
-                return;
-            }
-
-            // 2. 啟動攝影機
-            statusDisplay.innerHTML = "正在啟動攝影機...";
-            await setupWebcam();
-
-            // 3. 設定 canvas 尺寸
-            //    (確保 video 元素已經有正確的尺寸)
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // 4. 隱藏狀態訊息，開始執行辨識
-            statusDisplay.style.display = 'none';
-            runDetection();
-        }
-
-        // 啟動主程式
-        main();
+        // 5. 加入「載入成功」的偵測 (選用)
+        imgElement.onload = function() {
+            console.log("圖片載入成功！");
+        };
     </script>
+
 </body>
 </html>

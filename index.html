@@ -67,16 +67,16 @@
             width: 100%;
             max-width: 600px;
             aspect-ratio: 600 / 800;
-            background-color: #87CEEB; /* 天空藍 */
+            background-color: #87CEEB;
             overflow: hidden;
         }
 
         /* 圖片通用設定 */
         .scene-img {
             position: absolute;
-            transition: opacity 1.5s ease; /* 淡入淡出時間設為1.5秒比較自然 */
+            transition: opacity 1.5s ease;
             opacity: 0;
-            pointer-events: none; /* 防止圖片阻擋點擊 */
+            pointer-events: none;
         }
 
         .visible {
@@ -85,7 +85,7 @@
 
         /* --- 圖片位置與尺寸設定 --- */
         
-        /* 1. 森林 (背景) */
+        /* 1. 森林 */
         #img-forest {
             width: 100%;
             height: 100%;
@@ -111,28 +111,24 @@
             z-index: 3;
         }
 
-        /* 4. 蘋果通用設定 */
+        /* 4. 蘋果 */
         .apple {
-            width: 15%; /* 統一設定蘋果大小 */
+            width: 15%;
             z-index: 4;
         }
+        #img-apple-1 { top: 25%; left: 20%; }
+        #img-apple-2 { top: 30%; left: 65%; }
+        #img-apple-3 { top: 45%; left: 40%; }
 
-        /* 蘋果 1 位置 (左上) */
-        #img-apple-1 {
-            top: 25%;
-            left: 20%;
-        }
-
-        /* 蘋果 2 位置 (右上) */
-        #img-apple-2 {
-            top: 30%;
-            left: 65%;
-        }
-
-        /* 蘋果 3 位置 (中間偏下) */
-        #img-apple-3 {
-            top: 45%;
-            left: 40%;
+        /* 5. 封底 (結束畫面) */
+        #img-back-cover {
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            object-fit: contain; /* 確保整張圖顯示 */
+            background-color: #000; /* 封底背景設為黑，避免露餡 */
+            z-index: 99; /* 蓋在所有樹木蘋果之上 */
         }
 
         /* --- 計時器設定 --- */
@@ -147,6 +143,7 @@
             padding: 5px 10px;
             border-radius: 5px;
             z-index: 100;
+            transition: opacity 1s;
         }
 
     </style>
@@ -167,14 +164,14 @@
             <div id="timer">00:00</div>
 
             <img src="森林.png" id="img-forest" class="scene-img">
-            
             <img src="樹苗.png" id="img-sapling" class="scene-img">
-            
             <img src="大樹.png" id="img-bigtree" class="scene-img">
             
             <img src="蘋果.png" id="img-apple-1" class="scene-img apple">
             <img src="蘋果.png" id="img-apple-2" class="scene-img apple">
             <img src="蘋果.png" id="img-apple-3" class="scene-img apple">
+
+            <img src="封底.png" id="img-back-cover" class="scene-img">
         </div>
     </div>
 
@@ -184,14 +181,17 @@
         const bgm = document.getElementById('bgm');
         const timerDisplay = document.getElementById('timer');
 
+        // 取得圖片元素
         const imgForest = document.getElementById('img-forest');
         const imgSapling = document.getElementById('img-sapling');
         const imgBigtree = document.getElementById('img-bigtree');
-        
-        // 取得三顆蘋果的元素
         const imgApple1 = document.getElementById('img-apple-1');
         const imgApple2 = document.getElementById('img-apple-2');
         const imgApple3 = document.getElementById('img-apple-3');
+        const imgBackCover = document.getElementById('img-back-cover');
+
+        // 把場景圖片放進陣列方便管理 (不包含封底)
+        const sceneImages = [imgForest, imgSapling, imgBigtree, imgApple1, imgApple2, imgApple3];
 
         let startTime = null;
         let timerInterval = null;
@@ -220,7 +220,7 @@
                 updateTimerDisplay(seconds);
                 checkImageSequence(seconds);
 
-            }, 1000);
+            }, 250); // 縮短檢查間隔以求精準
         }
 
         function updateTimerDisplay(totalSeconds) {
@@ -231,31 +231,59 @@
         }
 
         function checkImageSequence(seconds) {
-            // 5秒: + 樹苗
-            if (seconds >= 5 && seconds < 10) {
-                imgSapling.classList.add('visible');
+            // --- 結束邏輯 (1分鐘 = 60秒) ---
+            if (seconds >= 60) {
+                finishPomodoro();
+                return;
             }
 
-            // 10秒: + 大樹 , - 樹苗 (樹苗消失)
+            // --- 正常生長邏輯 ---
+
+            // 5秒: + 樹苗
+            if (seconds >= 5 && seconds < 10) {
+                if (!imgSapling.classList.contains('visible')) imgSapling.classList.add('visible');
+            }
+
+            // 10秒: + 大樹 , - 樹苗
             if (seconds >= 10) {
-                imgBigtree.classList.add('visible');
-                imgSapling.classList.remove('visible'); // 移除 class 讓它淡出
+                if (!imgBigtree.classList.contains('visible')) imgBigtree.classList.add('visible');
+                if (imgSapling.classList.contains('visible')) imgSapling.classList.remove('visible');
             }
 
             // 15秒: + 蘋果 1
             if (seconds >= 15) {
-                imgApple1.classList.add('visible');
+                if (!imgApple1.classList.contains('visible')) imgApple1.classList.add('visible');
             }
 
             // 20秒: + 蘋果 2
             if (seconds >= 20) {
-                imgApple2.classList.add('visible');
+                if (!imgApple2.classList.contains('visible')) imgApple2.classList.add('visible');
             }
 
             // 25秒: + 蘋果 3
             if (seconds >= 25) {
-                imgApple3.classList.add('visible');
+                if (!imgApple3.classList.contains('visible')) imgApple3.classList.add('visible');
             }
+        }
+
+        function finishPomodoro() {
+            // 1. 停止計時器
+            clearInterval(timerInterval);
+            
+            // 2. 關閉音樂
+            bgm.pause();
+            bgm.currentTime = 0; // 重置音樂進度
+
+            // 3. 隱藏所有場景圖片 (森林、樹、蘋果)
+            sceneImages.forEach(img => {
+                img.classList.remove('visible');
+            });
+
+            // 4. 隱藏計時器 (選擇性，若想留著看時間可註解掉這行)
+            timerDisplay.style.opacity = '0'; 
+
+            // 5. 顯示封底
+            imgBackCover.classList.add('visible');
         }
     </script>
 </body>

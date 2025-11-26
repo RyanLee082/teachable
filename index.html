@@ -2,85 +2,261 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自動載入小花圖片</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>番茄鐘</title>
     <style>
-        /* --- CSS 部分：負責美化與置中 --- */
-        
-        /* 1. 設定全螢幕與置中佈局 */
-        body {
+        /* --- 全局設定 --- */
+        body, html {
             margin: 0;
             padding: 0;
-            height: 100vh;        /* 高度佔滿視窗 */
-            display: flex;        /* 使用彈性盒子 */
-            justify-content: center; /* 水平置中 */
-            align-items: center;     /* 垂直置中 */
-            background-color: #f0f2f5; /* 柔和背景色 */
-        }
-
-        /* 2. 圖片容器樣式 (相框效果) */
-        .image-container {
-            background: white;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* 陰影效果 */
-            text-align: center;
-        }
-
-        /* 3. 圖片本體樣式 */
-        #target-image {
-            max-width: 80vw;      /* 寬度最大不超過視窗 80% */
-            max-height: 70vh;     /* 高度最大不超過視窗 70% */
-            display: block;       /* 區塊顯示 */
-            border-radius: 5px;
-        }
-
-        /* 4. 如果圖片讀取失敗時的錯誤文字樣式 */
-        .error-msg {
-            color: red;
-            font-weight: bold;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #222;
             font-family: Arial, sans-serif;
-            display: none; /* 預設隱藏 */
         }
+
+        /* --- 封面頁面設定 --- */
+        #cover-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #cover-image {
+            max-width: 80%;
+            max-height: 80%;
+            animation: breathe 3s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .click-hint {
+            position: absolute;
+            bottom: 20%;
+            color: white;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* --- 番茄鐘主程式設定 --- */
+        #main-app {
+            display: none;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 600 / 800;
+            background-color: #87CEEB; /* 天空藍 */
+            overflow: hidden;
+        }
+
+        /* 圖片通用設定 */
+        .scene-img {
+            position: absolute;
+            transition: opacity 1.5s ease; /* 淡入淡出時間設為1.5秒比較自然 */
+            opacity: 0;
+            pointer-events: none; /* 防止圖片阻擋點擊 */
+        }
+
+        .visible {
+            opacity: 1;
+        }
+
+        /* --- 圖片位置與尺寸設定 --- */
+        
+        /* 1. 森林 (背景) */
+        #img-forest {
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* 2. 樹苗 */
+        #img-sapling {
+            width: 29%;
+            bottom: 10%;
+            left: 35%;
+            z-index: 2;
+        }
+
+        /* 3. 大樹 */
+        #img-bigtree {
+            width: 100%;
+            bottom: 0%;
+            left: 0%;
+            z-index: 3;
+        }
+
+        /* 4. 蘋果通用設定 */
+        .apple {
+            width: 15%; /* 統一設定蘋果大小 */
+            z-index: 4;
+        }
+
+        /* 蘋果 1 位置 (左上) */
+        #img-apple-1 {
+            top: 25%;
+            left: 20%;
+        }
+
+        /* 蘋果 2 位置 (右上) */
+        #img-apple-2 {
+            top: 30%;
+            left: 65%;
+        }
+
+        /* 蘋果 3 位置 (中間偏下) */
+        #img-apple-3 {
+            top: 45%;
+            left: 40%;
+        }
+
+        /* --- 計時器設定 --- */
+        #timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+
     </style>
 </head>
 <body>
 
-    <div class="image-container">
-        <img id="target-image" src="" alt="小花圖片">
-        
-        <p id="error-text" class="error-msg">找不到圖片！請確認「小花.png」是否在同一個資料夾內。</p>
+    <audio id="bgm" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="cover-screen">
+        <img src="封面.png" id="cover-image" alt="封面">
+        <div class="click-hint">點擊畫面開始專注</div>
+    </div>
+
+    <div id="main-app">
+        <div id="game-container">
+            <div id="timer">00:00</div>
+
+            <img src="森林.png" id="img-forest" class="scene-img">
+            
+            <img src="樹苗.png" id="img-sapling" class="scene-img">
+            
+            <img src="大樹.png" id="img-bigtree" class="scene-img">
+            
+            <img src="蘋果.png" id="img-apple-1" class="scene-img apple">
+            <img src="蘋果.png" id="img-apple-2" class="scene-img apple">
+            <img src="蘋果.png" id="img-apple-3" class="scene-img apple">
+        </div>
     </div>
 
     <script>
-        /* --- JavaScript 部分：負責邏輯控制 --- */
+        const coverScreen = document.getElementById('cover-screen');
+        const mainApp = document.getElementById('main-app');
+        const bgm = document.getElementById('bgm');
+        const timerDisplay = document.getElementById('timer');
 
-        // 1. 設定圖片檔名
-        const imageName = "ffff.png";
+        const imgForest = document.getElementById('img-forest');
+        const imgSapling = document.getElementById('img-sapling');
+        const imgBigtree = document.getElementById('img-bigtree');
+        
+        // 取得三顆蘋果的元素
+        const imgApple1 = document.getElementById('img-apple-1');
+        const imgApple2 = document.getElementById('img-apple-2');
+        const imgApple3 = document.getElementById('img-apple-3');
 
-        // 2. 取得 HTML 元素
-        const imgElement = document.getElementById('target-image');
-        const errorText = document.getElementById('error-text');
+        let startTime = null;
+        let timerInterval = null;
 
-        // 3. 設定圖片路徑
-        // 瀏覽器載入網頁時，立即執行這行
-        imgElement.src = imageName;
+        coverScreen.addEventListener('click', function() {
+            coverScreen.style.display = 'none';
+            mainApp.style.display = 'flex';
+            
+            bgm.play().catch(error => {
+                console.log("自動播放需使用者互動", error);
+            });
 
-        // 4. 加入「載入失敗」的偵測 (除錯用)
-        // 如果路徑錯誤或圖片不存在，會觸發 onerror 事件
-        imgElement.onerror = function() {
-            console.error("圖片載入失敗");
-            imgElement.style.display = 'none'; // 隱藏破圖圖示
-            errorText.style.display = 'block'; // 顯示錯誤訊息
-            errorText.innerText = `無法讀取「${imageName}」，請確認檔案名稱與位置。`;
-        };
+            startPomodoro();
+        });
 
-        // 5. 加入「載入成功」的偵測 (選用)
-        imgElement.onload = function() {
-            console.log("圖片載入成功！");
-        };
+        function startPomodoro() {
+            startTime = Date.now();
+            
+            // 0秒: 顯示森林
+            imgForest.classList.add('visible');
+
+            timerInterval = setInterval(() => {
+                const elapsedTime = Date.now() - startTime;
+                const seconds = Math.floor(elapsedTime / 1000);
+
+                updateTimerDisplay(seconds);
+                checkImageSequence(seconds);
+
+            }, 1000);
+        }
+
+        function updateTimerDisplay(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            timerDisplay.textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function checkImageSequence(seconds) {
+            // 5秒: + 樹苗
+            if (seconds >= 5 && seconds < 10) {
+                imgSapling.classList.add('visible');
+            }
+
+            // 10秒: + 大樹 , - 樹苗 (樹苗消失)
+            if (seconds >= 10) {
+                imgBigtree.classList.add('visible');
+                imgSapling.classList.remove('visible'); // 移除 class 讓它淡出
+            }
+
+            // 15秒: + 蘋果 1
+            if (seconds >= 15) {
+                imgApple1.classList.add('visible');
+            }
+
+            // 20秒: + 蘋果 2
+            if (seconds >= 20) {
+                imgApple2.classList.add('visible');
+            }
+
+            // 25秒: + 蘋果 3
+            if (seconds >= 25) {
+                imgApple3.classList.add('visible');
+            }
+        }
     </script>
-
 </body>
 </html>
-
